@@ -103,14 +103,14 @@ struct Feature: Identifiable {
 
     static let all: [Feature] = [
         Feature(id: 0x04, title: "In-ear detection", detail: "Pause when a bud comes out", symbol: "ear", hue: 5),
-        Feature(id: 0x08, title: "Auto-answer calls", detail: "Pick up without a tap", symbol: "phone.fill", hue: 4),
-        Feature(id: 0x11, title: "Dual connection", detail: "Stay on two devices at once", symbol: "laptopcomputer.and.iphone", hue: 0),
+        Feature(id: 0x08, title: "Auto-answer calls", detail: "", symbol: "phone.fill", hue: 4),
+        Feature(id: 0x11, title: "Dual connection", detail: "Phone and Mac at the same time", symbol: "laptopcomputer.and.iphone", hue: 0),
         Feature(id: 0x06, title: "Game mode", detail: "Low-latency audio", symbol: "gamecontroller.fill", hue: 3),
-        Feature(id: 0x1A, title: "Wind noise reduction", detail: "For calls outdoors", symbol: "wind", hue: 2),
-        Feature(id: 0x1B, title: "Spatial audio", detail: "Wider soundstage", symbol: "dot.radiowaves.left.and.right", hue: 6),
-        Feature(id: 0x1D, title: "Dynamic bass", detail: "Bass that follows the volume", symbol: "waveform", hue: 1),
-        Feature(id: 0x09, title: "Volume enhancer", detail: "Louder at the top end", symbol: "speaker.wave.3.fill", hue: 7),
-        Feature(id: 0x18, title: "High-res audio", detail: "LHDC, when the source supports it", symbol: "hifispeaker.fill", hue: 8),
+        Feature(id: 0x1A, title: "Wind noise reduction", detail: "", symbol: "wind", hue: 2),
+        Feature(id: 0x1B, title: "Spatial audio", detail: "", symbol: "dot.radiowaves.left.and.right", hue: 6),
+        Feature(id: 0x1D, title: "Dynamic bass", detail: "", symbol: "waveform", hue: 1),
+        Feature(id: 0x09, title: "Volume enhancer", detail: "", symbol: "speaker.wave.3.fill", hue: 7),
+        Feature(id: 0x18, title: "High-res audio", detail: "LHDC", symbol: "hifispeaker.fill", hue: 8),
     ]
 }
 

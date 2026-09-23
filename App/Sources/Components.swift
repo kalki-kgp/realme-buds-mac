@@ -139,30 +139,6 @@ struct BatteryRing: View {
     }
 }
 
-struct StatusDot: View {
-    let link: BudsClient.LinkState
-
-    var body: some View {
-        HStack(spacing: 5) {
-            Circle().fill(color).frame(width: 6, height: 6)
-                .shadow(color: color.opacity(0.6), radius: 3)
-            Text(verbatim: label)
-        }
-        .font(.system(size: 11, weight: .medium))
-        .foregroundStyle(Chrome.secondaryText)
-    }
-
-    private var color: Color {
-        switch link { case .connected: Chrome.success; case .connecting: Chrome.warning; default: Chrome.overlay(0.35) }
-    }
-    private var label: String {
-        switch link {
-        case .connected: "Connected"; case .connecting: "Connecting…"
-        case .disconnected: "Not connected"; case .noDevice: "No buds paired"
-        }
-    }
-}
-
 struct EventRow: View {
     let event: TouchEvent
 

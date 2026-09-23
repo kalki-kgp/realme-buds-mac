@@ -32,15 +32,21 @@ struct PanelView: View {
                 Text(verbatim: buds.deviceName)
                     .font(.system(size: 15, weight: .semibold))
                     .lineLimit(1)
-                HStack(spacing: 8) {
-                    StatusDot(link: buds.link)
-                    if let fw = buds.firmware {
-                        Text(verbatim: "fw \(fw)").font(.system(size: 11)).foregroundStyle(Chrome.secondaryText)
-                    }
-                }
+                Text(verbatim: status)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Chrome.secondaryText)
             }
             Spacer()
             ChromeCircleButton(symbol: "gearshape", help: "Settings", action: openSettings)
+        }
+    }
+
+    private var status: String {
+        switch buds.link {
+        case .connected: buds.firmware.map { "Firmware \($0)" } ?? "Connected"
+        case .connecting: "Connecting…"
+        case .disconnected: "Not connected"
+        case .noDevice: "No buds paired"
         }
     }
 
@@ -132,7 +138,7 @@ struct PanelView: View {
             if buds.link == .connected {
                 ChromeTextButton(symbol: buds.ringing ? "speaker.slash.fill" : "speaker.wave.2.fill",
                                  title: buds.ringing ? "Stop" : "Find buds",
-                                 help: "Play a loud tone from the buds — take them out first") {
+                                 help: "Play a loud tone from the buds. Take them out first.") {
                     buds.setRinging(!buds.ringing)
                 }
             }

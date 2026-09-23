@@ -48,11 +48,6 @@ struct SettingsView: View {
                 }
             }
             Spacer()
-            HStack(spacing: 6) {
-                StatusDot(link: buds.link)
-            }
-            .padding(.horizontal, 10)
-            .padding(.bottom, 14)
         }
         .padding(.horizontal, 10)
         .frame(width: 190)
@@ -85,7 +80,7 @@ struct SettingsView: View {
     @ViewBuilder private var page: some View {
         if buds.link != .connected && nav.page != .about && nav.page != .log {
             ChromeCard {
-                ChromeRow(title: "Buds not connected", detail: "Settings appear once the control channel is open.") {
+                ChromeRow(title: "Buds not connected", detail: nil) {
                     IconTile(symbol: "earbuds.case", hue: 8)
                 } control: {
                     if buds.link == .disconnected {
@@ -158,7 +153,7 @@ private struct GeneralPage: View {
                     }
                 }
                 ChromeRowDivider(inset: 50)
-                ChromeRow(title: "Dual connection", detail: "Stay connected to your phone and this Mac") {
+                ChromeRow(title: "Dual connection", detail: "Phone and Mac at the same time") {
                     IconTile(symbol: "laptopcomputer.and.iphone", hue: 5)
                 } control: {
                     SettingsSwitch(isOn: buds.binding(for: 0x11))
@@ -168,7 +163,7 @@ private struct GeneralPage: View {
 
         ChromeSection(title: "Find") {
             ChromeCard {
-                ChromeRow(title: "Find buds", detail: "Plays a loud tone. Take them out of your ears first.") {
+                ChromeRow(title: "Find buds", detail: "Loud. Take them out first.") {
                     IconTile(symbol: "speaker.wave.3.fill", hue: 1)
                 } control: {
                     ChromeTextButton(symbol: buds.ringing ? "stop.fill" : "play.fill",
@@ -236,10 +231,6 @@ private struct TouchPage: View {
                 }
             }
         }
-        Text("If a bud still acts on its own during calls with everything set to None, the firmware's call gestures (answer, hang up, mute) are the likely path. The Touch log shows what the buds actually register.")
-            .font(.system(size: 11))
-            .foregroundStyle(Chrome.secondaryText)
-            .padding(.horizontal, 4)
     }
 
     private func symbol(_ g: Gesture) -> String {
@@ -278,11 +269,10 @@ private struct LogPage: View {
     @ObservedObject var buds: BudsClient
 
     var body: some View {
-        Text("Every touch the buds register and every time a bud goes in or out of your ear, live. Leave this open during a call: if the phantom shows up as “Left · Double tap”, the touch sensor is firing on its own; if it shows as the left bud going out and back in, it's the wear sensor.")
+        Text("Touches and in/out-of-ear changes, as the buds report them.")
             .font(.system(size: 12))
             .foregroundStyle(Chrome.secondaryText)
             .padding(.horizontal, 4)
-            .fixedSize(horizontal: false, vertical: true)
 
         ChromeSection(title: "Events", trailing: buds.events.isEmpty ? nil : AnyView(
             ChromeTextButton(symbol: "trash", title: "Clear", help: "Clear the log") { buds.clearEvents() }
@@ -309,7 +299,7 @@ private struct LogPage: View {
 private struct AboutPage: View {
     var body: some View {
         ChromeCard {
-            ChromeRow(title: "Buds", detail: "A menu bar controller for realme earbuds, talking OPOv1 straight over Bluetooth.") {
+            ChromeRow(title: "Buds", detail: "Version 1.0") {
                 IconTile(symbol: "earbuds", hue: 0, size: 32)
             } control: { EmptyView() }
         }
