@@ -23,7 +23,7 @@ The settings window has everything else.
 | | |
 |---|---|
 | ![General](docs/settings-general.png) | ![Sound](docs/settings-sound.png) |
-| ![Touch controls](docs/settings-touch.png) | |
+| ![Touch controls](docs/settings-touch.png) | ![Features](docs/settings-features.png) |
 
 - **Touch controls.** Set double tap, triple tap and touch-and-hold for each bud, or turn a bud's gestures off in one click.
 - **Features.** In-ear detection, auto-answer, dual connection, game mode, wind noise reduction, spatial audio, dynamic bass, volume enhancer and high-res audio.
