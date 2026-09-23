@@ -2,3 +2,11 @@ App/Buds.app/
 cli/buds
 .DS_Store
 .build/
+iOS/Buds.xcodeproj/
+iOS/build/
+iOS/Payload/
+*.ipa
+iOS/App/Info.plist
+iOS/Widget/Info.plist
+iOS/App/Buds.entitlements
+iOS/Widget/BudsWidget.entitlements

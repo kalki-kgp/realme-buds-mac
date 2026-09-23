@@ -1,0 +1,55 @@
+name: iOS
+
+on:
+  push:
+    branches: [main]
+    paths: ["iOS/**", ".github/workflows/ios.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          cd iOS && xcodegen generate
+
+      - name: Build
+        run: |
+          cd iOS
+          xcodebuild -project Buds.xcodeproj -scheme Buds -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build | tail -40
+          test -d build/Build/Products/Release-iphoneos/Buds.app
+
+      # AltStore and SideStore read the app group from the binary's entitlements when they
+      # re-sign, so give both bundles an ad-hoc signature carrying them.
+      - name: Package the .ipa
+        run: |
+          cd iOS
+          APP=build/Build/Products/Release-iphoneos/Buds.app
+          codesign -f -s - --entitlements Widget/BudsWidget.entitlements "$APP/PlugIns/BudsWidget.appex"
+          codesign -f -s - --entitlements App/Buds.entitlements "$APP"
+          rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
+          zip -qry Buds.ipa Payload
+          ls -lh Buds.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Buds-ipa
+          path: iOS/Buds.ipa
+
+      - name: Publish a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "ios-${{ github.run_number }}" iOS/Buds.ipa \
+            --title "iOS build ${{ github.run_number }}" \
+            --notes "Unsigned build of ${GITHUB_SHA::7}. Install with AltStore or SideStore." \
+            --prerelease
