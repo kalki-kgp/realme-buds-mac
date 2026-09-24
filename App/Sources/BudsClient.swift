@@ -198,6 +198,7 @@ final class BudsClient: NSObject, ObservableObject, IOBluetoothRFCOMMChannelDele
     private var seq: UInt8 = 0
     private var connecting = false
     private var timers: [Timer] = []
+    private var listWaiters: [([PairedDevice]) -> Void] = []
 
     override init() {
         super.init()
@@ -282,6 +283,8 @@ final class BudsClient: NSObject, ObservableObject, IOBluetoothRFCOMMChannelDele
         channel = nil
         connecting = false
         ringing = false
+        listWaiters.removeAll()
+        switching.removeAll()
         link = (device?.isConnected() ?? false) ? .connecting : .disconnected
     }
 
@@ -319,15 +322,62 @@ final class BudsClient: NSObject, ObservableObject, IOBluetoothRFCOMMChannelDele
         send(Cmd.multiConnectInfo)
     }
 
-    /// Connects `device`, first dropping `replacing` when both connections are in use.
+    /// Connects `device`, first dropping `replacing` if both connections are in use.
+    ///
+    /// Asked to connect a third device, the buds make room by dropping this Mac. The app's
+    /// list can be stale (the buds send nothing when a device comes or goes on its own), so
+    /// every connect starts from a fresh read, and a switch waits until the buds confirm the
+    /// dropped device is gone before connecting the new one.
     func connect(_ device: PairedDevice, replacing: PairedDevice? = nil) {
-        if let replacing {
-            switching.insert(replacing.id)
-            send(Cmd.operateMultiConnect, [0x01] + replacing.address + [0x00])
-        }
         switching.insert(device.id)
+        if let replacing { switching.insert(replacing.id) }
+        readDevices { [weak self] list in
+            guard let self else { return }
+            let connected = list.filter(\.isConnected)
+            if connected.contains(where: { $0.id == device.id }) { return self.finishSwitch() }
+            if connected.count < 2 { return self.sendConnect(device) }
+            guard let replacing, connected.contains(where: { $0.id == replacing.id }), !replacing.isThisDevice else {
+                self.lastError = "Both connections are in use. Pick one to disconnect."
+                return self.finishSwitch()
+            }
+            self.send(Cmd.operateMultiConnect, [0x01] + replacing.address + [0x00])
+            self.waitUntilGone(replacing, attempts: 8) { gone in
+                if gone {
+                    self.sendConnect(device)
+                } else {
+                    self.lastError = "\(replacing.name) didn't disconnect, so nothing was switched."
+                    self.finishSwitch()
+                }
+            }
+        }
+    }
+
+    private func sendConnect(_ device: PairedDevice) {
         send(Cmd.operateMultiConnect, [0x01] + device.address + [0x01])
         recheckDevices()
+    }
+
+    /// Re-reads the list about once a second until `device` shows as disconnected.
+    private func waitUntilGone(_ device: PairedDevice, attempts: Int, then: @escaping (Bool) -> Void) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+            self?.readDevices { list in
+                let stillOn = list.contains { $0.id == device.id && $0.isConnected }
+                if !stillOn { then(true) } else if attempts > 1 {
+                    self?.waitUntilGone(device, attempts: attempts - 1, then: then)
+                } else { then(false) }
+            }
+        }
+    }
+
+    private func finishSwitch() {
+        switching.removeAll()
+        send(Cmd.multiConnectInfo)
+    }
+
+    /// Asks the buds for the device list and hands the answer to `then`.
+    private func readDevices(_ then: @escaping ([PairedDevice]) -> Void) {
+        listWaiters.append(then)
+        send(Cmd.multiConnectInfo)
     }
 
     func disconnect(_ device: PairedDevice) {
@@ -488,8 +538,8 @@ final class BudsClient: NSObject, ObservableObject, IOBluetoothRFCOMMChannelDele
                            title: "\(bud?.label ?? "Bud \(d[0])") · \(gesture)",
                            detail: action, isTouch: true))
         case 0xF2:
-            log(TouchEvent(date: Date(), symbol: "button.programmable", title: "Button event",
-                           detail: d.map { String(format: "%02x", $0) }.joined(separator: " "), isTouch: true))
+            // Not a button: the buds push their remembered-device names here when the list changes.
+            send(Cmd.multiConnectInfo)
         default:
             break
         }
@@ -518,6 +568,9 @@ final class BudsClient: NSObject, ObservableObject, IOBluetoothRFCOMMChannelDele
             }
         }
         devices = list
+        let waiters = listWaiters
+        listWaiters.removeAll()
+        waiters.forEach { $0(list) }
     }
 
     private func parseBattery(_ b: ArraySlice<UInt8>) {
