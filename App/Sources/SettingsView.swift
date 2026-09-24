@@ -1,26 +1,26 @@
 import SwiftUI
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case general, sound, touch, features, log, about
+    case general, devices, sound, touch, features, log, about
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .general: "General"; case .sound: "Sound"; case .touch: "Touch controls"
+        case .general: "General"; case .devices: "Devices"; case .sound: "Sound"; case .touch: "Touch controls"
         case .features: "Features"; case .log: "Touch log"; case .about: "About"
         }
     }
     var symbol: String {
         switch self {
-        case .general: "gearshape.fill"; case .sound: "waveform"; case .touch: "hand.tap.fill"
+        case .general: "gearshape.fill"; case .devices: "laptopcomputer.and.iphone"; case .sound: "waveform"; case .touch: "hand.tap.fill"
         case .features: "switch.2"; case .log: "list.bullet.rectangle.fill"; case .about: "info"
         }
     }
     var hue: Int {
-        switch self { case .general: 8; case .sound: 6; case .touch: 1; case .features: 0; case .log: 3; case .about: 4 }
+        switch self { case .general: 8; case .devices: 5; case .sound: 6; case .touch: 1; case .features: 0; case .log: 3; case .about: 4 }
     }
     /// Sidebar groups, the way Droppy spaces its sections.
-    static let groups: [[SettingsPage]] = [[.general], [.sound, .touch, .features], [.log], [.about]]
+    static let groups: [[SettingsPage]] = [[.general, .devices], [.sound, .touch, .features], [.log], [.about]]
 }
 
 final class SettingsNavigation: ObservableObject {
@@ -93,6 +93,7 @@ struct SettingsView: View {
         } else {
             switch nav.page {
             case .general: GeneralPage(buds: buds)
+            case .devices: DevicesPage(buds: buds)
             case .sound: SoundPage(buds: buds)
             case .touch: TouchPage(buds: buds)
             case .features: FeaturesPage(buds: buds)
@@ -152,12 +153,6 @@ private struct GeneralPage: View {
                         buds.refresh()
                     }
                 }
-                ChromeRowDivider(inset: 50)
-                ChromeRow(title: "Dual connection", detail: "Phone and Mac at the same time") {
-                    IconTile(symbol: "laptopcomputer.and.iphone", hue: 5)
-                } control: {
-                    SettingsSwitch(isOn: buds.binding(for: 0x11))
-                }
             }
         }
 
@@ -172,6 +167,27 @@ private struct GeneralPage: View {
                     }
                 }
             }
+        }
+    }
+}
+
+private struct DevicesPage: View {
+    @ObservedObject var buds: BudsClient
+
+    var body: some View {
+        ChromeCard {
+            ChromeRow(title: "Dual connection", detail: "Two devices at a time") {
+                IconTile(symbol: "rectangle.2.swap", hue: 0)
+            } control: {
+                SettingsSwitch(isOn: buds.binding(for: 0x11))
+            }
+        }
+        ChromeSection(title: "Remembered", trailing: AnyView(
+            ChromeTextButton(symbol: "arrow.clockwise", title: "Refresh", help: "Ask the buds for the list again") {
+                buds.refresh()
+            }
+        )) {
+            DevicesCard(buds: buds)
         }
     }
 }

@@ -11,6 +11,7 @@ struct PanelView: View {
             if buds.link == .connected {
                 batteries
                 ChromeSection(title: "Noise control") { NoiseControlCard(buds: buds) }
+                ChromeSection(title: "Devices") { DevicesCard(buds: buds) }
                 quickSettings
                 if let latest = buds.events.first(where: \.isTouch) {
                     lastTouch(latest)

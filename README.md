@@ -14,6 +14,7 @@ The menu bar icon shows the lower of the two bud batteries. Clicking it opens a 
 
 - battery rings for left, right and case, with charging state and whether each bud is in your ear
 - noise control (off, transparency, noise cancelling) and the four ANC levels
+- the devices the buds remember, with connect, disconnect and switch
 - equalizer preset, game mode and in-ear detection
 - the last touch the buds registered
 - find my buds, which plays a loud tone
@@ -25,6 +26,7 @@ The settings window has everything else.
 | ![General](docs/settings-general.png) | ![Sound](docs/settings-sound.png) |
 | ![Touch controls](docs/settings-touch.png) | ![Features](docs/settings-features.png) |
 
+- **Devices.** The buds hold two connections and remember more devices than that. Connect any remembered device, or switch it in for one of the two that are connected. This Mac is never the one dropped, since the app talks to the buds through it.
 - **Touch controls.** Set double tap, triple tap and touch-and-hold for each bud, or turn a bud's gestures off in one click.
 - **Features.** In-ear detection, auto-answer, dual connection, game mode, wind noise reduction, spatial audio, dynamic bass, volume enhancer and high-res audio.
 - **Touch log.** A live list of every touch the buds report and every time a bud goes in or out of your ear. If a bud acts on its own, this tells you whether the touch sensor fired or the wear sensor flickered.
@@ -70,7 +72,7 @@ The buds advertise an RFCOMM service called `oppointeraction` (UUID `0000079A-D1
 aa <len> 00 00 <cmd lo> <cmd hi> <seq> <payload len u16le> <payload…>
 ```
 
-Replies set the high bit of the command and put a status byte first. The buds push battery, placement, noise mode and touch events on command `0x0204` once you subscribe with `0x0205`. The full command table is in [`BudsClient.swift`](App/Sources/BudsClient.swift).
+Replies set the high bit of the command and put a status byte first. `0x0112` lists remembered devices and `0x040B` connects or disconnects one by address. The buds push battery, placement, noise mode and touch events on command `0x0204` once you subscribe with `0x0205`. The full command table is in [`BudsClient.swift`](App/Sources/BudsClient.swift).
 
 Nothing here opens the buds' `BESOTA` firmware update service. A bad write there could brick them.
 

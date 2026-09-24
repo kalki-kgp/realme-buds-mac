@@ -23,6 +23,8 @@ enum Cmd {
     static let setANC: UInt16 = 0x0404
     static let setEQ: UInt16 = 0x0406
     static let setSpatial: UInt16 = 0x041E
+    static let multiConnectInfo: UInt16 = 0x0112
+    static let operateMultiConnect: UInt16 = 0x040B
     static let featureEvent: UInt16 = 0x0503
     static let eqNotify: UInt16 = 0x0504
     static let keyFunctionNotify: UInt16 = 0x0508
@@ -138,6 +140,18 @@ struct TouchEvent: Identifiable {
     let isTouch: Bool
 }
 
+/// A device the buds remember pairing with. They hold two connections at once and keep
+/// the rest on this list, from which any one can be brought back.
+struct PairedDevice: Identifiable, Equatable {
+    /// Bluetooth address as the buds send it (byte-reversed); sent back unchanged.
+    let address: [UInt8]
+    let name: String
+    let isConnected: Bool
+    /// The device this app is talking through, i.e. this Mac.
+    let isThisDevice: Bool
+    var id: [UInt8] { address }
+}
+
 struct GestureSlot: Hashable {
     let bud: Bud
     let gesture: Gesture
@@ -172,6 +186,9 @@ final class BudsClient: NSObject, ObservableObject, IOBluetoothRFCOMMChannelDele
     @Published private(set) var features: [UInt8: Bool] = [:]
     @Published private(set) var events: [TouchEvent] = []
     @Published private(set) var ringing = false
+    @Published private(set) var devices: [PairedDevice] = []
+    /// Devices a connect or disconnect was just sent for, until the buds report back.
+    @Published private(set) var switching: Set<[UInt8]> = []
     @Published var lastError: String?
 
     private var device: IOBluetoothDevice?
@@ -299,6 +316,36 @@ final class BudsClient: NSObject, ObservableObject, IOBluetoothRFCOMMChannelDele
         send(Cmd.keyFunction, [0x02, 0x01, 0x02])
         let ids = Feature.all.map(\.id)
         send(Cmd.featureSwitch, [UInt8(ids.count)] + ids)
+        send(Cmd.multiConnectInfo)
+    }
+
+    /// Connects `device`, first dropping `replacing` when both connections are in use.
+    func connect(_ device: PairedDevice, replacing: PairedDevice? = nil) {
+        if let replacing {
+            switching.insert(replacing.id)
+            send(Cmd.operateMultiConnect, [0x01] + replacing.address + [0x00])
+        }
+        switching.insert(device.id)
+        send(Cmd.operateMultiConnect, [0x01] + device.address + [0x01])
+        recheckDevices()
+    }
+
+    func disconnect(_ device: PairedDevice) {
+        switching.insert(device.id)
+        send(Cmd.operateMultiConnect, [0x01] + device.address + [0x00])
+        recheckDevices()
+    }
+
+    /// The buds send no event when a device comes or goes, and a reconnect took about seven
+    /// seconds on a Buds Air 7, so poll the list until then and a little past it.
+    private func recheckDevices() {
+        let delays = [2.0, 5.0, 8.0, 12.0]
+        for delay in delays {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                self?.send(Cmd.multiConnectInfo)
+                if delay == delays.last { self?.switching.removeAll() }
+            }
+        }
     }
 
     func setNoiseMode(_ mode: NoiseMode) {
@@ -367,7 +414,13 @@ final class BudsClient: NSObject, ObservableObject, IOBluetoothRFCOMMChannelDele
 
     private func handle(_ cmd: UInt16, _ p: [UInt8]) {
         let isReply = cmd & Cmd.response != 0
-        if isReply, p.first != 0x00 { return }   // rejected
+        if isReply, p.first != 0x00 {   // rejected
+            if cmd == Cmd.operateMultiConnect | Cmd.response {
+                lastError = "The buds turned that switch down"
+                switching.removeAll()
+            }
+            return
+        }
         switch cmd {
         case Cmd.version | Cmd.response:
             parseVersion(p)
@@ -397,6 +450,10 @@ final class BudsClient: NSObject, ObservableObject, IOBluetoothRFCOMMChannelDele
             for (id, v) in pairs(p.dropFirst(1), count: Int(p[0])) { features[id] = v == 1 }
         case Cmd.findBuds | Cmd.response:
             break
+        case Cmd.multiConnectInfo | Cmd.response where p.count >= 2:
+            parseDevices(p)
+        case Cmd.operateMultiConnect | Cmd.response:
+            break
         case Cmd.notificationEvent where !p.isEmpty:
             handleEvent(p[0], Array(p.dropFirst()))
         default:
@@ -419,6 +476,8 @@ final class BudsClient: NSObject, ObservableObject, IOBluetoothRFCOMMChannelDele
                 }
                 placement[bud] = new
             }
+        case 0x06, 0x0D, 0x12, 0x13, 0x16:
+            send(Cmd.multiConnectInfo)
         case 0x03 where d.count >= 3:
             if d[0] == 0x01, let mode = NoiseMode(wire: d[2]) { noiseMode = mode }
         case 0xF1 where d.count >= 4:
@@ -434,6 +493,31 @@ final class BudsClient: NSObject, ObservableObject, IOBluetoothRFCOMMChannelDele
         default:
             break
         }
+    }
+
+    /// `00 <count>` then per device: address(6) <len> then <len> bytes of
+    /// state, flags, name length, name. State 1/2 is connected; flag bit 0 marks this device.
+    private func parseDevices(_ p: [UInt8]) {
+        var list: [PairedDevice] = []
+        var pos = 2
+        for _ in 0..<Int(p[1]) where pos + 10 <= p.count {
+            let address = Array(p[pos..<pos + 6])
+            let length = Int(p[pos + 6])
+            let state = p[pos + 7], flags = p[pos + 8], nameLength = Int(p[pos + 9])
+            let nameEnd = min(p.count, pos + 10 + nameLength)
+            let name = String(decoding: p[(pos + 10)..<nameEnd], as: UTF8.self)
+                .trimmingCharacters(in: .whitespacesAndNewlines.union(.controlCharacters))
+            list.append(PairedDevice(address: address, name: name.isEmpty ? "Unnamed device" : name,
+                                     isConnected: state == 1 || state == 2, isThisDevice: flags & 0x01 != 0))
+            pos += 7 + length
+        }
+        // Settled devices leave the switching set as soon as their state changes.
+        for device in list {
+            if let old = devices.first(where: { $0.id == device.id }), old.isConnected != device.isConnected {
+                switching.remove(device.id)
+            }
+        }
+        devices = list
     }
 
     private func parseBattery(_ b: ArraySlice<UInt8>) {

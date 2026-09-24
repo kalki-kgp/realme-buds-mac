@@ -163,6 +163,62 @@ struct EventRow: View {
     }
 }
 
+/// The devices the buds remember. Two can be connected at once; connecting a third
+/// asks which of the two to drop. This Mac can't be dropped from here, since the
+/// app talks to the buds through it.
+struct DevicesCard: View {
+    @ObservedObject var buds: BudsClient
+
+    var body: some View {
+        ChromeCard {
+            if buds.devices.isEmpty {
+                ChromeRow(title: "Reading the list…") { ProgressView().controlSize(.small) }
+            }
+            ForEach(Array(buds.devices.enumerated()), id: \.element.id) { index, device in
+                if index > 0 { ChromeRowDivider(inset: 50) }
+                ChromeRow(title: device.name, detail: detail(device)) {
+                    IconTile(symbol: "laptopcomputer.and.iphone", hue: device.isConnected ? 5 : 8)
+                } control: {
+                    control(device)
+                }
+            }
+        }
+    }
+
+    private var connected: [PairedDevice] { buds.devices.filter(\.isConnected) }
+
+    private func detail(_ device: PairedDevice) -> String {
+        if buds.switching.contains(device.id) { return device.isConnected ? "Disconnecting…" : "Connecting…" }
+        if device.isThisDevice { return "This Mac" }
+        return device.isConnected ? "Connected" : "Not connected"
+    }
+
+    @ViewBuilder
+    private func control(_ device: PairedDevice) -> some View {
+        if buds.switching.contains(device.id) {
+            ProgressView().controlSize(.small)
+        } else if device.isThisDevice {
+            EmptyView()
+        } else if device.isConnected {
+            ChromeTextButton(symbol: "xmark", title: "Disconnect", help: "Disconnect \(device.name) from the buds") {
+                buds.disconnect(device)
+            }
+        } else if connected.count < 2 {
+            ChromeTextButton(symbol: "link", title: "Connect", help: "Connect \(device.name) to the buds") {
+                buds.connect(device)
+            }
+        } else {
+            let droppable = connected.filter { !$0.isThisDevice }
+            ChromeTextMenu(symbol: "arrow.left.arrow.right", title: "Switch", help: "Swap \(device.name) in for another device") {
+                PopoverSectionHeader("Disconnect to make room")
+                ForEach(droppable) { other in
+                    PopoverItem(other.name) { buds.connect(device, replacing: other) }
+                }
+            }
+        }
+    }
+}
+
 /// Noise control: three modes, and the four ANC strengths once ANC is on.
 struct NoiseControlCard: View {
     @ObservedObject var buds: BudsClient

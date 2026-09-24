@@ -203,6 +203,58 @@ struct ChromeTextButton: View {
     }
 }
 
+/// A text button shaped like a chrome capsule that opens a popover.
+struct ChromeTextMenu<Content: View>: View {
+    let symbol: String
+    let title: String
+    let help: String
+    @ViewBuilder var content: Content
+
+    @State private var isHovering = false
+    @State private var isPresented = false
+
+    var body: some View {
+        Button {
+            isPresented.toggle()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: symbol).font(Chrome.inlineIconFont)
+                Text(verbatim: title).font(.system(size: 12.5, weight: .medium)).lineLimit(1)
+                Image(systemName: "chevron.down").font(Chrome.chevronFont).foregroundStyle(Chrome.secondaryText)
+            }
+            .foregroundStyle(Chrome.primaryText.opacity(isHovering || isPresented ? 1 : 0.92))
+            .padding(.horizontal, Chrome.capsuleHorizontalPadding)
+            .frame(height: Chrome.capsuleContentHeight)
+            .padding(.vertical, Chrome.capsuleVerticalPadding)
+            .contentShape(Capsule(style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+        .chromeGlassCapsule()
+        .onHover { hovering in withAnimation(Chrome.hover) { isHovering = hovering } }
+        .help(help)
+        .popover(isPresented: $isPresented, arrowEdge: .bottom) {
+            PopoverMenu { content }
+        }
+    }
+}
+
+struct PopoverSectionHeader: View {
+    let title: String
+
+    init(_ title: String) { self.title = title }
+
+    var body: some View {
+        Text(verbatim: title)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(Chrome.secondaryText)
+            .padding(.horizontal, 8)
+            .padding(.top, 6)
+            .padding(.bottom, 3)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 /// A glass capsule showing the current choice; clicking it opens the choices in a native popover.
 struct GlassPickerButton<Value: Hashable>: View {
     let options: [(value: Value, title: String)]
