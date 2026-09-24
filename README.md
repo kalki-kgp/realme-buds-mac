@@ -31,6 +31,10 @@ The settings window has everything else.
 - **Features.** In-ear detection, auto-answer, dual connection, game mode, wind noise reduction, spatial audio, dynamic bass, volume enhancer and high-res audio.
 - **Touch log.** A live list of every touch the buds report and every time a bud goes in or out of your ear. If a bud acts on its own, this tells you whether the touch sensor fired or the wear sensor flickered.
 
+## iPhone
+
+The iPhone app, with battery widgets for the Home Screen and the Lock Screen, is part of [Gear](https://github.com/kalki-kgp/gear). Gear also covers my OnePlus watch, because a free Apple ID only allows 3 sideloaded apps.
+
 ## Supported buds
 
 I've only tested it on the **realme Buds Air 7** (firmware 1.1.0.66). Battery, placement and the touch log use a message format that realme, OPPO and OnePlus share, so those should work on other realme and OPPO buds that expose the `oppointeraction` service. Noise control values, gesture options and feature switches differ between models, and the app doesn't read the model ID yet, so on anything else treat those as untested. Most OnePlus buds speak the same protocol over Bluetooth LE instead, which this app doesn't do.
